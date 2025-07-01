@@ -4,10 +4,8 @@ Claude Code用の開発コンテナ環境です。AI駆動開発のための最�
 
 ## 特徴
 
-- **AI運用5原則**に基づいた開発環境
-- **TDD（テスト駆動開発）**をサポート
-- **"3人寄れば文殊の知恵with-o3"開発原則**の実装
-- Claude Code、GeminiCLI、OpenAIcodex、o3の統合環境
+- Claude Code、GeminiCLI、OpenAIcodexを統合し、話し合わせる事で正確なコーディングとトークン数の削減を試みる。
+- これら3つのCLIにて"3人寄れば文殊の知恵"を実現した上で、o3-search-mcpによる高度な検索機能でサポートを行う。
 
 ## 開発環境の起動
 
