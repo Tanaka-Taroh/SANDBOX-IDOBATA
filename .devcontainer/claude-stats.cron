@@ -1,0 +1,5 @@
+# /etc/cron.d/claude-stats
+# 毎日午前0時にclaude statsを実行し、結果をJSON形式でログに追記する
+SHELL=/bin/bash
+PATH=/home/vscode/.nvm/versions/node/v20.15.1/bin:/home/vscode/.npm-global/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+0 0 * * * vscode . /home/vscode/.bashrc && claude stats --json >> /var/log/claude/daily_stats.json 2>&1

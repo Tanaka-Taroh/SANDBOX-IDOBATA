@@ -1,0 +1,77 @@
+{
+  "name": "Claude Code AI Sandbox with o3-Gemini",
+  "build": {
+    "dockerfile": "Dockerfile",
+    "context": ".."
+  },
+  "features": {
+    "ghcr.io/devcontainers/features/node:1": {
+      "version": "22",
+      "nodeGypDependencies": true
+    },
+    "ghcr.io/devcontainers/features/python:1": {
+      "version": "3.11"
+    },
+    "ghcr.io/devcontainers/features/go:1": {
+      "version": "latest"
+    }
+  },
+  "postCreateCommand": "bash ./.devcontainer/post-create.sh",
+  
+  // o3-search-mcp用の環境変数設定
+  "remoteEnv": {
+    "O3_SEARCH_MCP_VERSION": "latest",
+    "O3_SEARCH_MCP_ENDPOINT": "http://localhost:8080",
+    "SEARCH_CONTEXT_SIZE": "medium",
+    "REASONING_EFFORT": "medium"
+  },
+  
+  "forwardPorts": [
+    7000, 7001, 7002, 7003, 7004, 7005, 7006, 7007, 7008, 7009,
+    8080  // o3-search-mcp用ポート追加
+  ],
+  
+  "mounts": [
+    "source=claude-dev-node_modules,target=${containerWorkspaceFolder}/node_modules,type=volume",
+    "source=claude_logs,target=/var/log/claude,type=volume"
+  ],
+  
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "dbaeumer.vscode-eslint",
+        "ms-python.python",
+        "ms-python.vscode-pylance",
+        "GitHub.copilot",
+        "eamodio.gitlens",
+        "ms-azuretools.vscode-docker"
+      ],
+      "settings": {
+        "terminal.integrated.defaultProfile.linux": "bash",
+        "terminal.integrated.profiles.linux": {
+          "bash": {
+            "path": "/bin/bash"
+          }
+        }
+      }
+    }
+  },
+  
+  // 環境変数ファイルの読み込み設定
+  "runArgs": [
+    "--env-file",
+    "${localWorkspaceFolder}/.env"
+  ],
+  
+  "remoteUser": "vscode",
+  
+  // o3-search-mcp関連の追加設定
+  "initializeCommand": "echo 'Preparing o3-search-mcp DevContainer environment...'",
+  
+  // ライフサイクルフック
+  "updateContentCommand": "echo 'Updating container with latest o3-search-mcp configuration...'",
+  
+  // セキュリティ設定
+  "capAdd": [],
+  "securityOpt": []
+}

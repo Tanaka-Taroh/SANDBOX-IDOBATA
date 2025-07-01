@@ -1,0 +1,17 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(gemini:*)",
+      "Bash(ls:*)",
+      "Bash(codex \"東京の梅雨明けの時期を教えてください\")",
+      "Bash(codex:*)",
+      "WebFetch(domain:github.com)",
+      "Bash(claude --version)",
+      "Bash(claude mcp:*)",
+      "Bash(source .env)",
+      "Bash(node:*)",
+      "mcp__o3__o3-search"
+    ],
+    "deny": []
+  }
+}
