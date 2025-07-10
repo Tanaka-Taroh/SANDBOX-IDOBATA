@@ -6,6 +6,17 @@ set -e
 O3_SEARCH_MCP_VERSION="${O3_SEARCH_MCP_VERSION:-1.0.0}"
 O3_SEARCH_MCP_ENDPOINT="${O3_SEARCH_MCP_ENDPOINT:-http://localhost:8080}"
 
+# --- npm を最新バージョンに更新 ---
+echo ">>> Updating npm to latest version..."
+npm install -g npm@latest
+echo ">>> npm updated to $(npm --version)"
+
+# --- npm グローバル設定を最初に行う ---
+echo ">>> Configuring npm global settings..."
+mkdir -p ~/.npm-global
+npm config set prefix '~/.npm-global'
+echo ">>> npm prefix set to: $(npm config get prefix)"
+
 echo "=== DevContainer AI Tools Setup ==="
 echo "Starting installation of AI CLI tools..."
 
@@ -37,9 +48,7 @@ else
 fi
 
 # --- シェルの共通設定 ---
-# npmのグローバルインストール先を設定
-mkdir -p ~/.npm-global
-npm config set prefix '~/.npm-global'
+# npmのグローバルインストール先は既に設定済み
 
 # .bashrcに、設定がまだ書き込まれていなければ追記する
 BASHRC_FILE=~/.bashrc
@@ -64,14 +73,24 @@ if [ -f "$ENV_FILE" ]; then
         export "$line"
     done < "$ENV_FILE"
 fi
+
 EOF
 fi
 
 # ターミナル起動時に設定を読み込むための設定
-# .bash_profileが存在しない場合のみ作成
-if [ ! -f ~/.bash_profile ]; then
+# .bash_profileから.bashrcを確実に読み込む（SSH再接続対応）
+if [ -f ~/.bash_profile ]; then
+    # 既存の.bash_profileに.bashrc読み込み設定があるか確認
+    if ! grep -q "source.*\.bashrc\|\..*\.bashrc" ~/.bash_profile; then
+        echo 'if [ -f ~/.bashrc ]; then . ~/.bashrc; fi' >> ~/.bash_profile
+    fi
+
+else
     echo 'if [ -f ~/.bashrc ]; then . ~/.bashrc; fi' > ~/.bash_profile
 fi
+
+# Ensure NPM global binaries are available in PATH for this session
+export PATH="$HOME/.npm-global/bin:$PATH"
 
 # --- o3-search-mcp MCPサーバー設定 ---
 echo ">>> Configuring o3-search-mcp as Claude MCP server..."
