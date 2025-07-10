@@ -62,7 +62,7 @@
 - **ユーザーの要求を受けたら即座にGeminiCLIとOpenAIcodexに壁打ち**を必ず実施
 - **高度な検索情報が必要だと判断した場合、o3に検索を依頼**
     -GeminiCLIの場合は`gemini -p <質問内容>`
-    -OpenAIcodexの場合は`codex -q "質問内容"`
+    -OpenAIcodexの場合は`codex exec "質問内容"`
     -**o3** , **o3-low**, **o3-high** はMCPServerに登録されています。
 - 並行して同時に聞くこと (聞き方はそれぞれ最適化すること)。どちらも少しレスポンスに時間がかかります。
 - GeminiCLIとOpenAIcodex、o3の意見を鵜呑みにせず、1意見として判断。聞き方を変えて多角的な意見を抽出
