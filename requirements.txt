@@ -1,3 +1,3 @@
-# Research environment requirements
-pytest>=7.0.0
-fabric>=3.0.0
+# Research environment requirements (CentOS 7 compatible)
+pytest>=6.0.0
+# fabric>=3.0.0  # Skip for now due to cryptography dependency issues
