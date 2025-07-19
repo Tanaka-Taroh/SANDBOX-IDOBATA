@@ -2,20 +2,42 @@
 # 4つの主要AI CLIをすべてインストールし、o3-search-mcpを自動設定するスクリプト
 set -e
 
+# --- tmuxのインストールをここに追加 ---
+# command -v tmuxでコマンドの存在を確認し、なければインストール
+if ! command -v tmux &> /dev/null; then
+    echo ">>> Installing tmux..."
+    # パッケージリストを更新してからtmuxをインストール
+    sudo apt-get update && sudo apt-get install -y tmux
+fi
+# ------------------------------------
+
 # --- バージョン管理 ---
 O3_SEARCH_MCP_VERSION="${O3_SEARCH_MCP_VERSION:-1.0.0}"
 O3_SEARCH_MCP_ENDPOINT="${O3_SEARCH_MCP_ENDPOINT:-http://localhost:8080}"
+
+# --- NVMの初期化（DevContainer featuresでインストール済み） ---
+echo ">>> Initializing NVM..."
+export NVM_DIR="/usr/local/share/nvm"
+[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"  # NVMを読み込み
+[ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"  # bash_completionを読み込み
+
+# Node.jsの確認とアクティブ化
+echo ">>> Activating Node.js..."
+nvm use node
+echo ">>> Node.js version: $(node --version)"
+echo ">>> npm version: $(npm --version)"
 
 # --- npm を最新バージョンに更新 ---
 echo ">>> Updating npm to latest version..."
 npm install -g npm@latest
 echo ">>> npm updated to $(npm --version)"
 
-# --- npm グローバル設定を最初に行う ---
-echo ">>> Configuring npm global settings..."
-mkdir -p ~/.npm-global
-npm config set prefix '~/.npm-global'
-echo ">>> npm prefix set to: $(npm config get prefix)"
+# --- 競合する設定をクリーンアップ ---
+echo ">>> Cleaning up conflicting npm configurations..."
+# .npmrcから競合する設定を削除
+if [ -f ~/.npmrc ]; then
+    sed -i '/^prefix=/d' ~/.npmrc
+fi
 
 echo "=== DevContainer AI Tools Setup ==="
 echo "Starting installation of AI CLI tools..."
@@ -48,8 +70,6 @@ else
 fi
 
 # --- シェルの共通設定 ---
-# npmのグローバルインストール先は既に設定済み
-
 # .bashrcに、設定がまだ書き込まれていなければ追記する
 BASHRC_FILE=~/.bashrc
 if ! grep -q "# --- AI CLI Environment Settings ---" "$BASHRC_FILE"; then
@@ -58,9 +78,10 @@ if ! grep -q "# --- AI CLI Environment Settings ---" "$BASHRC_FILE"; then
   cat <<'EOF' >> "$BASHRC_FILE"
 
 # --- AI CLI Environment Settings ---
-# Add Node + NPM global paths
-export NPM_CONFIG_PREFIX="$HOME/.npm-global"
-export PATH="$NPM_CONFIG_PREFIX/bin:$PATH"
+# NVMの初期化（DevContainer featuresでインストール済み）
+export NVM_DIR="/usr/local/share/nvm"
+[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"  # NVMを読み込み
+[ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"  # bash_completionを読み込み
 
 # .envファイルからAPIキーを一行ずつ安全に読み込み、exportする
 ENV_FILE="/workspaces/claude-sandbox/.env"
@@ -141,16 +162,84 @@ else
     echo "⚠️  Claude CLI not available for MCP status check"
 fi
 
+# --- Research Environment Setup ---
+echo ">>> Setting up research environment packages..."
+
+# Python packages for research
+pip3 install fabric pytest
+
+# Verify essential tools are available
+command -v rsync >/dev/null 2>&1 || { echo "WARNING: rsync not found - install via apt"; }
+
+# Create tools.json template for Claude Code CLI
+TOOLS_JSON_PATH="/workspaces/claude-sandbox/tools.json"
+if [ ! -f "$TOOLS_JSON_PATH" ]; then
+    echo ">>> Creating tools.json template..."
+    cat <<'TOOLS_EOF' > "$TOOLS_JSON_PATH"
+[
+  {
+    "name": "deploy_to_omega",
+    "command": "fab push",
+    "description": "Git-push & trigger post-receive hook on Omega"
+  },
+  {
+    "name": "watch_log",
+    "command": "fab tail",
+    "description": "Tail the running simulation log on Omega"
+  },
+  {
+    "name": "check_status",
+    "command": "fab status",
+    "description": "Check simulation status and recent logs on Omega"
+  },
+  {
+    "name": "backup_results",
+    "command": "fab backup",
+    "description": "Backup simulation results on Omega"
+  }
+]
+TOOLS_EOF
+    echo ">>> tools.json template created."
+fi
+
+# Create fabfile.py template
+FABFILE_PATH="/workspaces/claude-sandbox/fabfile.py"
+if [ ! -f "$FABFILE_PATH" ]; then
+    echo ">>> Creating fabfile.py template..."
+    cat <<'FAB_EOF' > "$FABFILE_PATH"
+from fabric import task, Connection
+
+OMEGA = "Omega"
+
+@task
+def push(c):
+    """Deploy code to Omega"""
+    c.local("git push omega main")
+
+@task
+def tail(c):
+    """Watch simulation logs"""
+    conn = Connection(OMEGA)
+    conn.run("tail -f /opt/sim/worktree/run.log")
+
+@task
+def status(c):
+    """Check simulation status"""
+    conn = Connection(OMEGA)
+    conn.run("ps aux | grep simulate.sh")
+    conn.run("tail -20 /opt/sim/worktree/run.log")
+
+@task
+def backup(c):
+    """Backup simulation results"""
+    conn = Connection(OMEGA)
+    conn.run("rsync -av /opt/sim/worktree/results/ /opt/sim/backup/$(date +%Y%m%d)/")
+FAB_EOF
+    echo ">>> fabfile.py template created."
+fi
+
+echo ">>> Research environment setup completed."
+
 echo ""
 echo "🎉 Post-create setup completed successfully!"
-echo ""
-echo "📝 Next Steps:"
-echo "   1. Ensure your .env file contains required API keys"
-echo "   2. Restart your terminal or run: source ~/.bashrc"
-echo "   3. Test o3-search-mcp: Try a search query in Claude Code"
-echo ""
-echo "🔧 Troubleshooting:"
-echo "   - Check MCP status: claude mcp list"
-echo "   - View logs: tail -f ~/.claude/logs/mcp.log"
-echo "   - Manual registration: claude mcp add o3 -s user -e OPENAI_API_KEY=your-key -- npx o3-search-mcp"
 echo ""

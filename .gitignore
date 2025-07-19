@@ -6,3 +6,6 @@ dist/
 build/
 PROJECT
 .claude
+gen-lang-client-0148561850-880c0cef0f16.json
+fabfile.py
+tools.json

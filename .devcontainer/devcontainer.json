@@ -33,6 +33,7 @@
   
   "mounts": [
     "source=claude-dev-node_modules,target=${containerWorkspaceFolder}/node_modules,type=volume",
+    "source=${localEnv:HOME}/.ssh,target=/home/vscode/.ssh,type=bind,consistency=cached",,
     "source=claude_logs,target=/var/log/claude,type=volume"
   ],
   
