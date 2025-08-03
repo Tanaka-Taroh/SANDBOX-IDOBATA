@@ -1,0 +1,17 @@
+README.md
+pyproject.toml
+src/serena_mcp/__init__.py
+src/serena_mcp/__main__.py
+src/serena_mcp/cache_manager.py
+src/serena_mcp/config.py
+src/serena_mcp/context_manager.py
+src/serena_mcp/lsp_client.py
+src/serena_mcp/lsp_mock.py
+src/serena_mcp/mcp_server.py
+src/serena_mcp/mcp_stdio_server.py
+src/serena_mcp.egg-info/PKG-INFO
+src/serena_mcp.egg-info/SOURCES.txt
+src/serena_mcp.egg-info/dependency_links.txt
+src/serena_mcp.egg-info/entry_points.txt
+src/serena_mcp.egg-info/requires.txt
+src/serena_mcp.egg-info/top_level.txt

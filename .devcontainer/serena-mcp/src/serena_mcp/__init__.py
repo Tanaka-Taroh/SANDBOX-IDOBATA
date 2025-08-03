@@ -1,0 +1,1 @@
+"""Serena-MCP package initialization to support module imports."""

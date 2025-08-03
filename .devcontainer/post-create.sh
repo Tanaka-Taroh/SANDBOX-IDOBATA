@@ -1,10 +1,24 @@
-#!/bin/bash
+#!/bin/sh
 # 4つの主要AI CLIをすべてインストールし、o3-search-mcpを自動設定するスクリプト
 set -e
 
+# --- 仮想環境のアクティベート ---
+echo ">>> Activating Python virtual environment..."
+# Dockerfileで作成済みの仮想環境を使用
+if [ -f "/opt/venv/bin/activate" ]; then
+    . /opt/venv/bin/activate
+    echo ">>> Virtual environment activated: $VIRTUAL_ENV"
+else
+    echo "⚠️  WARNING: Virtual environment not found at /opt/venv"
+    echo ">>> Creating fallback virtual environment..."
+    python3 -m venv /opt/venv
+    . /opt/venv/bin/activate
+    pip install --upgrade pip
+fi
+
 # --- tmuxのインストールをここに追加 ---
 # command -v tmuxでコマンドの存在を確認し、なければインストール
-if ! command -v tmux &> /dev/null; then
+if ! command -v tmux >/dev/null 2>&1; then
     echo ">>> Installing tmux..."
     # パッケージリストを更新してからtmuxをインストール
     sudo apt-get update && sudo apt-get install -y tmux
@@ -12,14 +26,14 @@ fi
 # ------------------------------------
 
 # --- バージョン管理 ---
-O3_SEARCH_MCP_VERSION="${O3_SEARCH_MCP_VERSION:-1.0.0}"
+O3_SEARCH_MCP_VERSION="${O3_SEARCH_MCP_VERSION:-latest}"
 O3_SEARCH_MCP_ENDPOINT="${O3_SEARCH_MCP_ENDPOINT:-http://localhost:8080}"
 
 # --- NVMの初期化（DevContainer featuresでインストール済み） ---
 echo ">>> Initializing NVM..."
 export NVM_DIR="/usr/local/share/nvm"
-[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"  # NVMを読み込み
-[ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"  # bash_completionを読み込み
+[ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh"  # NVMを読み込み
+[ -s "$NVM_DIR/bash_completion" ] && . "$NVM_DIR/bash_completion"  # bash_completionを読み込み
 
 # Node.jsの確認とアクティブ化
 echo ">>> Activating Node.js..."
@@ -58,12 +72,17 @@ npm install -g @google/gemini-cli
 echo ">>> Google Gemini CLI installed."
 
 # --- 4. o3-search-mcp (新規追加) ---
-echo ">>> 4/4: Installing o3-search-mcp v${O3_SEARCH_MCP_VERSION}..."
+echo ">>> 4/4: Installing o3-search-mcp..."
 
 # バージョン固定でインストール
-if ! command -v o3-search-mcp &> /dev/null; then
-    echo "Installing o3-search-mcp@${O3_SEARCH_MCP_VERSION}..."
-    npm install -g o3-search-mcp@"${O3_SEARCH_MCP_VERSION}"
+if ! command -v o3-search-mcp >/dev/null 2>&1; then
+    if [ "$O3_SEARCH_MCP_VERSION" = "latest" ]; then
+        echo "Installing latest version of o3-search-mcp..."
+        npm install -g o3-search-mcp
+    else
+        echo "Installing o3-search-mcp@${O3_SEARCH_MCP_VERSION}..."
+        npm install -g o3-search-mcp@"${O3_SEARCH_MCP_VERSION}"
+    fi
     echo ">>> o3-search-mcp installed successfully."
 else
     echo ">>> o3-search-mcp already installed, skipping..."
@@ -78,19 +97,24 @@ if ! grep -q "# --- AI CLI Environment Settings ---" "$BASHRC_FILE"; then
   cat <<'EOF' >> "$BASHRC_FILE"
 
 # --- AI CLI Environment Settings ---
+# Python仮想環境の自動アクティベート
+if [ -f "/opt/venv/bin/activate" ]; then
+    . /opt/venv/bin/activate
+fi
+
 # NVMの初期化（DevContainer featuresでインストール済み）
 export NVM_DIR="/usr/local/share/nvm"
-[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"  # NVMを読み込み
-[ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"  # bash_completionを読み込み
+[ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh"  # NVMを読み込み
+[ -s "$NVM_DIR/bash_completion" ] && . "$NVM_DIR/bash_completion"  # bash_completionを読み込み
 
 # .envファイルからAPIキーを一行ずつ安全に読み込み、exportする
 ENV_FILE="/workspaces/claude-sandbox/.env"
 if [ -f "$ENV_FILE" ]; then
     while IFS= read -r line || [ -n "$line" ]; do
-        # コメント行と空行を無視する
-        if [[ "$line" =~ ^\s*# ]] || [[ -z "$line" ]]; then
-            continue
-        fi
+        # コメント行と空行を無視する（POSIX互換）
+        case "$line" in
+            "#"*|"") continue ;;
+        esac
         export "$line"
     done < "$ENV_FILE"
 fi
@@ -101,8 +125,8 @@ fi
 # ターミナル起動時に設定を読み込むための設定
 # .bash_profileから.bashrcを確実に読み込む（SSH再接続対応）
 if [ -f ~/.bash_profile ]; then
-    # 既存の.bash_profileに.bashrc読み込み設定があるか確認
-    if ! grep -q "source.*\.bashrc\|\..*\.bashrc" ~/.bash_profile; then
+    # 既存の.bash_profileに.bashrc読み込み設定があるか確認（POSIX互換）
+    if ! grep -E '(source|\.)[[:space:]]+.*\.bashrc' ~/.bash_profile >/dev/null 2>&1; then
         echo 'if [ -f ~/.bashrc ]; then . ~/.bashrc; fi' >> ~/.bash_profile
     fi
 
@@ -133,30 +157,43 @@ if claude mcp list 2>/dev/null | grep -q "o3"; then
 else
     echo ">>> Adding o3-search-mcp to Claude MCP..."
     # MCPサーバーとして登録
-    claude mcp add o3 -s user \
-        -e OPENAI_API_KEY="${OPENAI_API_KEY:-}" \
-        -e SEARCH_CONTEXT_SIZE=medium \
-        -e REASONING_EFFORT=medium \
-        -- npx o3-search-mcp@"${O3_SEARCH_MCP_VERSION}" || {
-        echo "⚠️  Failed to register o3-search-mcp with Claude MCP."
-        echo "   This might be due to missing OPENAI_API_KEY or network issues."
-        echo "   You can manually register later using:"
-        echo "   claude mcp add o3 -s user -e OPENAI_API_KEY=your-key -- npx o3-search-mcp"
-    }
+    if [ "$O3_SEARCH_MCP_VERSION" = "latest" ]; then
+        claude mcp add o3 -s user \
+            -e OPENAI_API_KEY="${OPENAI_API_KEY:-}" \
+            -e SEARCH_CONTEXT_SIZE=medium \
+            -e REASONING_EFFORT=medium \
+            -- npx o3-search-mcp || {
+            echo "⚠️  Failed to register o3-search-mcp with Claude MCP."
+            echo "   This might be due to missing OPENAI_API_KEY or network issues."
+            echo "   You can manually register later using:"
+            echo "   claude mcp add o3 -s user -e OPENAI_API_KEY=your-key -- npx o3-search-mcp"
+        }
+    else
+        claude mcp add o3 -s user \
+            -e OPENAI_API_KEY="${OPENAI_API_KEY:-}" \
+            -e SEARCH_CONTEXT_SIZE=medium \
+            -e REASONING_EFFORT=medium \
+            -- npx o3-search-mcp@"${O3_SEARCH_MCP_VERSION}" || {
+            echo "⚠️  Failed to register o3-search-mcp with Claude MCP."
+            echo "   This might be due to missing OPENAI_API_KEY or network issues."
+            echo "   You can manually register later using:"
+            echo "   claude mcp add o3 -s user -e OPENAI_API_KEY=your-key -- npx o3-search-mcp@${O3_SEARCH_MCP_VERSION}"
+        }
+    fi
 fi
 
 # --- 最終確認 ---
 echo ""
 echo "=== Installation Summary ==="
-echo "✅ Claude Code CLI: $(claude --version 2>/dev/null || echo 'installed')"
-echo "✅ OpenAI Codex CLI: $(codex --version 2>/dev/null || echo 'installed')"
-echo "✅ Google Gemini CLI: $(gemini --version 2>/dev/null || echo 'installed')"
-echo "✅ o3-search-mcp: v${O3_SEARCH_MCP_VERSION}"
+echo "✅ Claude Code CLI: $(timeout 2s claude --version 2>/dev/null || echo 'installed')"
+echo "✅ OpenAI Codex CLI: $(timeout 2s codex --version 2>/dev/null || echo 'installed')"
+echo "✅ Google Gemini CLI: $(timeout 2s gemini --version 2>/dev/null || echo 'installed')"
+echo "✅ o3-search-mcp: installed"
 
 # MCP登録状況の確認
 echo ""
 echo "=== Claude MCP Status ==="
-if command -v claude &> /dev/null; then
+if command -v claude >/dev/null 2>&1; then
     claude mcp list 2>/dev/null || echo "⚠️  Unable to check MCP status (claude may not be fully initialized)"
 else
     echo "⚠️  Claude CLI not available for MCP status check"
@@ -165,8 +202,11 @@ fi
 # --- Research Environment Setup ---
 echo ">>> Setting up research environment packages..."
 
-# Python packages for research
-pip3 install fabric pytest
+# 仮想環境が有効であることを確認
+echo ">>> Installing Python packages in virtual environment: $VIRTUAL_ENV"
+
+# Python packages for research（仮想環境内でインストール）
+pip install fabric pytest
 
 # Verify essential tools are available
 command -v rsync >/dev/null 2>&1 || { echo "WARNING: rsync not found - install via apt"; }
@@ -239,6 +279,24 @@ FAB_EOF
 fi
 
 echo ">>> Research environment setup completed."
+
+# --- Serena-MCP Setup ---
+echo ""
+echo ">>> Setting up Serena-MCP..."
+
+# Serena-MCP is now installed in the Docker image at /opt/serena-mcp
+# Register Serena-MCP with Claude if not already registered
+if claude mcp list 2>/dev/null | grep -q "serena"; then
+    echo ">>> Serena-MCP is already registered with Claude MCP, skipping..."
+else
+    echo ">>> Registering Serena-MCP with Claude MCP..."
+    claude mcp add serena -s user \
+        -- /opt/venv/bin/python -m serena_mcp.mcp_stdio_server || {
+        echo "⚠️  Failed to register Serena-MCP with Claude MCP."
+        echo "   You can manually register later using:"
+        echo "   claude mcp add serena -s user -- /opt/venv/bin/python -m serena_mcp.mcp_stdio_server"
+    }
+fi
 
 echo ""
 echo "🎉 Post-create setup completed successfully!"

@@ -1,0 +1,60 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "serena-mcp"
+version = "0.1.0"
+description = "Language Server Protocol based Model Context Protocol server"
+readme = "README.md"
+authors = [{name = "Serena-MCP Team"}]
+license = {text = "MIT"}
+requires-python = ">=3.11"
+dependencies = [
+    "fastapi>=0.109.0",
+    "uvicorn[standard]>=0.27.0",
+    "python-lsp-server[all]>=1.9.0",
+    "pylsp-mypy>=0.6.8",
+    "tiktoken>=0.5.2",
+    "pydantic>=2.5.0",
+    "httpx>=0.26.0",
+    "cachetools>=5.3.2",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.4.4",
+    "pytest-asyncio>=0.23.3",
+    "pytest-cov>=4.1.0",
+    "black>=23.12.1",
+    "mypy>=1.8.0",
+    "ruff>=0.1.11",
+]
+
+[project.scripts]
+serena-mcp = "serena_mcp.mcp_server:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+serena_mcp = ["py.typed"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
+asyncio_mode = "auto"
+
+[tool.black]
+line-length = 88
+target-version = ["py311"]
+
+[tool.mypy]
+python_version = "3.11"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+
+[tool.ruff]
+select = ["E", "F", "I", "N", "W"]
+line-length = 88

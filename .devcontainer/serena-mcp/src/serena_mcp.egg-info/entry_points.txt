@@ -1,0 +1,2 @@
+[console_scripts]
+serena-mcp = serena_mcp.mcp_server:main

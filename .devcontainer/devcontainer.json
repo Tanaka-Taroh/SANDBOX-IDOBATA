@@ -10,33 +10,16 @@
       "nodeGypDependencies": true
     },
     "ghcr.io/devcontainers/features/python:1": {
-      "version": "3.11"
+      "version": "3.11",
+      "installTools": true
     },
     "ghcr.io/devcontainers/features/go:1": {
       "version": "latest"
     }
   },
-  "postCreateCommand": "bash ./.devcontainer/post-create.sh",
+  "postCreateCommand": "/bin/bash ./.devcontainer/post-create.sh",
   
-  // o3-search-mcp用の環境変数設定
-  "remoteEnv": {
-    "O3_SEARCH_MCP_VERSION": "latest",
-    "O3_SEARCH_MCP_ENDPOINT": "http://localhost:8080",
-    "SEARCH_CONTEXT_SIZE": "medium",
-    "REASONING_EFFORT": "medium"
-  },
-  
-  "forwardPorts": [
-    7000, 7001, 7002, 7003, 7004, 7005, 7006, 7007, 7008, 7009,
-    8080  // o3-search-mcp用ポート追加
-  ],
-  
-  "mounts": [
-    "source=claude-dev-node_modules,target=${containerWorkspaceFolder}/node_modules,type=volume",
-    "source=${localEnv:HOME}/.ssh,target=/home/vscode/.ssh,type=bind,consistency=cached",
-    "source=claude_logs,target=/var/log/claude,type=volume"
-  ],
-  
+  // シェルの設定を明示的に指定
   "customizations": {
     "vscode": {
       "extensions": [
@@ -51,9 +34,12 @@
         "terminal.integrated.defaultProfile.linux": "bash",
         "terminal.integrated.profiles.linux": {
           "bash": {
-            "path": "/bin/bash"
+            "path": "/bin/bash",
+            "args": ["-l"]
           }
-        }
+        },
+        "python.defaultInterpreterPath": "/opt/venv/bin/python",
+        "python.terminal.activateEnvironment": true
       }
     }
   },

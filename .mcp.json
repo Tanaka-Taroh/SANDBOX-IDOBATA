@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "serena": {
+      "command": "/opt/venv/bin/python",
+      "args": ["-m", "serena_mcp.mcp_stdio_server"],
+      "transport": "stdio"
+    }
+  }
+}
